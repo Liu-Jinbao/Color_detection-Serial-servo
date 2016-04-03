@@ -1,0 +1,100 @@
+#include<opencv2/highgui/highgui.hpp>
+#include<opencv2/imgproc/imgproc.hpp>
+#include<iostream>
+
+using namespace std;
+using namespace cv;
+
+int main(int argc,char** argv)
+{
+	VideoCapture cap(0);       //open camera
+	if(!cap.isOpened())
+	{
+		cout<<"The camare can't be opened.."<<endl;
+		system("pause");
+		return -1;
+	}
+
+	int iLowH = 0;           //create trackbar
+	int iHighH = 179;
+
+	int iLowS = 0;
+	int iHighS = 255;
+
+	int iLowV = 0;
+	int iHighV = 255;
+
+	namedWindow("Control",CV_WINDOW_AUTOSIZE);
+	cvCreateTrackbar( "iLowH", "Control", &iLowH,  179 );
+	cvCreateTrackbar( "iHighH","Control", &iHighH, 179 );
+
+	cvCreateTrackbar( "iLowS", "Control", &iLowS,  255 );
+	cvCreateTrackbar( "iHighS","Control", &iHighS, 255 );
+
+	cvCreateTrackbar( "iLowV", "Control", &iLowV,  255 );
+	cvCreateTrackbar( "iHighV","Control", &iHighV, 255 );
+
+	int iLastX = -1;            //inaitial
+	int iLastY = -1;
+	Mat imgTemp;
+	cap.read(imgTemp);
+	Mat imgLines = Mat::zeros(imgTemp.size(),CV_8UC3);
+
+	while(1)
+	{
+		Mat imgOriginal;
+		bool bsuccess = cap.read(imgOriginal);         //read frame
+		if(!bsuccess)
+		{
+			cout<<"Can't read a frame from video stream"<<endl;
+			system("pause");
+			return -1;
+		}
+
+		Mat imgHSV;                                       //BGR2HSV
+		cvtColor(imgOriginal,imgHSV,COLOR_BGR2HSV);
+
+		Mat imgThresholded;                                // Thresholded 
+		inRange(imgHSV,Scalar(iLowH,iLowS,iLowV),Scalar(iHighH,iHighS,iHighV),imgThresholded);
+		for(int i=65536;i<0;i--)                           //Time for biaoding  
+			for(int i = 65536; i<0; i--);
+
+		erode ( imgThresholded,  imgThresholded, getStructuringElement(MORPH_ELLIPSE,Size(5,5)));     //Morphological Opening
+		dilate( imgThresholded,  imgThresholded, getStructuringElement(MORPH_ELLIPSE,Size(5,5)));
+
+		dilate( imgThresholded,  imgThresholded, getStructuringElement(MORPH_ELLIPSE,Size(5,5)));     //Morphological Closing  
+		erode ( imgThresholded,  imgThresholded, getStructuringElement(MORPH_ELLIPSE,Size(5,5)));
+
+		Moments oMoments = moments(imgThresholded);         //Moment
+		double dM01 = oMoments.m01;
+		double dM10 = oMoments.m10;
+		double dArea = oMoments.m00;
+		if(dArea>10000)
+		{
+			int posX = dM10 / dArea;
+			int posY = dM01 / dArea;
+		
+		if(iLastX >= 0 && iLastY >= 0 && posX >= 0 && posY >=0 )
+		{
+			line(imgLines,Point(posX,posY),Point(iLastX,iLastY),Scalar(0,0,255),2);
+		}
+		iLastX = posX;
+		iLastY = posY;
+		}
+
+		namedWindow("Thresholded Image",CV_WINDOW_AUTOSIZE);
+		imshow ("Thresholded Image",imgThresholded);
+
+		namedWindow("Original Image",CV_WINDOW_AUTOSIZE);
+		imgOriginal = imgLines + imgOriginal;
+		imshow("Original Image",imgOriginal);
+
+		if(waitKey(30)==27)
+			break;
+		}
+	destroyAllWindows();
+	return 0;
+
+	
+
+}
