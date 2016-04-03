@@ -1,0 +1,69 @@
+#include<opencv2/highgui/highgui.hpp>
+#include<opencv2/imgproc/imgproc.hpp>
+#include<iostream>
+using namespace std;
+using namespace cv;
+int main(int argc,char**argv)
+{
+	VideoCapture cap(0);   //open camare
+	if(!cap.isOpened())
+	{
+		cout<<"The camare can't be opened.."<<endl;
+		system("pause");
+		return -1;
+	}
+	namedWindow("Control",CV_WINDOW_AUTOSIZE);  //CreateTrackbar
+	int iLowH = 0;
+	int iHighH = 179;
+
+	int iLowS = 0;
+	int iHighS = 255;
+
+	int iLowV = 0;
+	int iHighV = 255;
+
+	cvCreateTrackbar( "ilowH",  "Control", &iLowH,  179);
+	cvCreateTrackbar( "iHighH", "Control", &iHighH, 179);
+
+	cvCreateTrackbar( "ilowS",  "Control", &iLowS,  255);
+	cvCreateTrackbar( "iHighS", "Control", &iHighS, 255);
+
+	cvCreateTrackbar( "ilowV",  "Control", &iLowV,  255);
+	cvCreateTrackbar( "iHighV", "Control", &iHighV, 255);
+	
+	while(1)
+	{
+		Mat imgOriginal;
+		bool success = cap.read(imgOriginal);
+		if(!success)
+		{
+			cout<<"Can't read a frame from video stream"<<endl;
+			system("pause");
+			return -1;
+		}
+		namedWindow("Qriginal Image",CV_WINDOW_AUTOSIZE); 
+		imshow("Qriginal Image",imgOriginal);
+		
+		Mat imgHSV;
+		cvtColor(imgOriginal,imgHSV,COLOR_BGR2HSV);  //COLOR2HSV
+
+		Mat imgThresholded;
+		inRange(imgHSV,Scalar(iLowH,iLowS,iLowV),Scalar(iHighH,iHighS,iHighV),imgThresholded);   //Thershold
+	
+		erode(imgThresholded,imgThresholded,getStructuringElement(MORPH_ELLIPSE,Size(5,5)));   //Morphological Opening (remove small objects)
+		dilate(imgThresholded,imgThresholded,getStructuringElement(MORPH_ELLIPSE,Size(5,5)));
+		
+		dilate(imgThresholded,imgThresholded,getStructuringElement(MORPH_ELLIPSE,Size(5,5)));  //Morphological Closing (fill small holes)
+		erode(imgThresholded,imgThresholded,getStructuringElement(MORPH_ELLIPSE,Size(5,5)));
+	  
+		//cvtColor(imgThresholded,imgThresholded,COLOR_HSV2BGR);
+		namedWindow("Thresholded Image",CV_WINDOW_AUTOSIZE); 
+		imshow("Thresholded Image",imgThresholded);
+		
+		if(waitKey(30)==27)
+	    break;		
+
+	}
+	    destroyAllWindows();
+		return 0;
+}
